@@ -1,4 +1,6 @@
 import logging
+import threading
+from multiprocessing.pool import ThreadPool
 
 logging.basicConfig(  # filename="uptime.log",
     format="[%(asctime)s] [%(levelname)8s] --- %(message)s (%(filename)s:%(lineno)s)",
@@ -31,7 +33,7 @@ def get_IP_on_default_network() -> List[str]:
 
 def get_mac_if_alive(ip: str):
     mac = False
-    if pyICMP.ping(ip) is True:
+    if pyICMP.ping(ip, count=2) is True:
         mac = getmac.get_mac_address(ip=ip)
     return mac
 
@@ -46,6 +48,20 @@ class Device:
 
 
 class main:
+    @staticmethod
+    def update_device_obj_uptime(device_ip: str) -> Device:
+        """Takes in device object and updates it's mac property"""
+        logging.debug(threading.current_thread())
+
+        mac = get_mac_if_alive(device_ip)
+        d = Device(device_ip, None)
+        if mac:  # Is device alive or not?
+            d.mac_address = mac
+
+        # Don't update mac filed if device isn't up
+        return d
+
+
 
     @staticmethod
     def run_main():
@@ -61,15 +77,23 @@ class main:
         #     sys.exit(1)
         #
         raw_ip_list = []
-
         for raw_ip in get_IP_on_default_network():
             raw_ip_list.append(str(raw_ip))
 
-        live_list = []
-        for ip in raw_ip_list:
-            mac = get_mac_if_alive(ip)
-            if mac:
-                live_list.append(Device(ip, mac))
+        pool = ThreadPool(processes=254)
+        results: List[Device] = pool.map(main.update_device_obj_uptime, raw_ip_list)
+        # Takes function to work against, and iterable list to work on
+
+        pool.close()
+        pool.join()
+        pool.terminate()
+
+        clean_list: List[Device] = []
+        for i in results:
+            if i.mac_address is not None:
+                clean_list.append(i)
+
+        logging.debug(results)
 
         logging.info("EOP")
 
