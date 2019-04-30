@@ -36,10 +36,13 @@ def get_mac_if_alive(ip: str):
     return mac
 
 
-class device:
-    def __init__(self):
-        ip = ""
-        mac_address = ""
+class Device:
+    ip = ""
+    mac_address = ""
+
+    def __init__(self, ip, mac_address):
+        self.ip = ip
+        self.mac_address = mac_address
 
 
 class main:
@@ -47,20 +50,26 @@ class main:
     @staticmethod
     def run_main():
         """ Take arguments and direct program """
-        parser = argparse.ArgumentParser()
+        # parser = argparse.ArgumentParser()
+        #
+        # parser.add_argument("-ip", help="IP address in CIDR notation ex 192.168.1.0/24",
+        #                     required=True)
+        #
+        # args = parser.parse_args()
+        # if len(sys.argv) == 1:  # Displays help and lists servers (to help first time users)
+        #     parser.print_help()
+        #     sys.exit(1)
+        #
+        raw_ip_list = []
 
-        parser.add_argument("-ip", help="IP address in CIDR notation ex 192.168.1.0/24",
-                            required=True)
+        for raw_ip in get_IP_on_default_network():
+            raw_ip_list.append(str(raw_ip))
 
-        args = parser.parse_args()
-        if len(sys.argv) == 1:  # Displays help and lists servers (to help first time users)
-            parser.print_help()
-            sys.exit(1)
-
-        # Feeds generated IP host list tp sensor data generator
-        device_list = []
-        for i in ipaddress.IPv4Network(args.ip).hosts():
-            device_list.append(device(str(i)))
+        live_list = []
+        for ip in raw_ip_list:
+            mac = get_mac_if_alive(ip)
+            if mac:
+                live_list.append(Device(ip, mac))
 
         logging.info("EOP")
 
@@ -68,7 +77,4 @@ class main:
 if __name__ == "__main__":
     logging.info("START")
     logging.info(str(os.getcwd()))
-
-    print(get_mac_if_alive("192.168.11.1"))
-
-    # main.run_main()
+    main.run_main()
